@@ -1,0 +1,158 @@
+import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView } from 'obsidian';
+import { ClaudeService } from './src/claude-service';
+import { TripleCrownSettings, DEFAULT_SETTINGS } from './src/settings';
+import { TerminalView, TERMINAL_VIEW_TYPE } from './src/terminal-view';
+import { WritingAssistantAction } from './src/actions/writing-assistant';
+
+export default class TripleCrownPlugin extends Plugin {
+  settings: TripleCrownSettings;
+  claudeService: ClaudeService;
+  writingAssistant: WritingAssistantAction;
+
+  async onload() {
+    await this.loadSettings();
+
+    // Initialize services
+    this.claudeService = new ClaudeService(this.app, this.settings);
+    this.writingAssistant = new WritingAssistantAction(this.app, this.claudeService);
+
+    // Register terminal view
+    this.registerView(
+      TERMINAL_VIEW_TYPE,
+      (leaf) => new TerminalView(leaf, this.claudeService)
+    );
+
+    // Add ribbon icon
+    this.addRibbonIcon('terminal', 'Open Claude Terminal', () => {
+      this.activateView();
+    });
+
+    // Add commands
+    this.addCommand({
+      id: 'open-claude-terminal',
+      name: 'Open Claude Terminal',
+      callback: () => {
+        this.activateView();
+      }
+    });
+
+    this.addCommand({
+      id: 'writing-assistant',
+      name: 'Writing Assistant',
+      editorCallback: (editor, ctx) => {
+        const view = ctx as MarkdownView;
+        if (view && view.file) {
+          this.writingAssistant.execute(editor, view);
+        }
+      }
+    });
+
+    this.addCommand({
+      id: 'duplicate-and-edit',
+      name: 'Duplicate & Edit',
+      editorCallback: (editor, ctx) => {
+        const view = ctx as MarkdownView;
+        if (view && view.file) {
+          this.writingAssistant.duplicateAndEdit(editor, view);
+        }
+      }
+    });
+
+    // Add settings tab
+    this.addSettingTab(new TripleCrownSettingTab(this.app, this));
+
+    console.log('Triple-Crown plugin loaded');
+  }
+
+  async onunload() {
+    if (this.claudeService) {
+      await this.claudeService.cleanup();
+    }
+    console.log('Triple-Crown plugin unloaded');
+  }
+
+  async loadSettings() {
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+  }
+
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+
+  async activateView() {
+    const { workspace } = this.app;
+    
+    let leaf: WorkspaceLeaf | null = null;
+    const leaves = workspace.getLeavesOfType(TERMINAL_VIEW_TYPE);
+
+    if (leaves.length > 0) {
+      leaf = leaves[0];
+    } else {
+      // Use getRightLeaf as getBottomLeaf doesn't exist
+      leaf = workspace.getRightLeaf(false);
+      if (leaf) {
+        await leaf.setViewState({ type: TERMINAL_VIEW_TYPE, active: true });
+      }
+    }
+
+    if (leaf) {
+      workspace.revealLeaf(leaf);
+    }
+  }
+}
+
+class TripleCrownSettingTab extends PluginSettingTab {
+  plugin: TripleCrownPlugin;
+
+  constructor(app: App, plugin: TripleCrownPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName('Claude API Key')
+      .setDesc('Your Anthropic API key (optional if using OAuth)')
+      .addText(text => text
+        .setPlaceholder('sk-ant-...')
+        .setValue(this.plugin.settings.apiKey)
+        .onChange(async (value) => {
+          this.plugin.settings.apiKey = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Auto-save duplicates')
+      .setDesc('Automatically save duplicate & edit results')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.autoSaveDuplicates)
+        .onChange(async (value) => {
+          this.plugin.settings.autoSaveDuplicates = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Show inline changes')
+      .setDesc('Display strikethrough deletions and bold additions')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showInlineChanges)
+        .onChange(async (value) => {
+          this.plugin.settings.showInlineChanges = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Include reasoning')
+      .setDesc('Add Claude\'s reasoning in blockquotes')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.includeReasoning)
+        .onChange(async (value) => {
+          this.plugin.settings.includeReasoning = value;
+          await this.plugin.saveSettings();
+        }));
+  }
+}
