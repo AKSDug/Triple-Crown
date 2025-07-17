@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
   "description": "An intelligent writing assistant powered by Claude Code, featuring duplicate & edit workflows and context-aware suggestions.",
-  "author": "Your Name",
-  "authorUrl": "https://github.com/yourusername",
-  "fundingUrl": "https://github.com/sponsors/yourusername",
+  "author": "AKSDug",
+  "authorUrl": "https://github.com/AKSDug",
+  "fundingUrl": "https://github.com/sponsors/AKSDug",
   "isDesktopOnly": true,
   "js": "main.js"
 }

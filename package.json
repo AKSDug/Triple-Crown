@@ -15,7 +15,7 @@
     "ai",
     "writing-assistant"
   ],
-  "author": "Your Name",
+  "author": "AKSDug",
   "license": "MIT",
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
