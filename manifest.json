@@ -3,10 +3,11 @@
   "name": "Triple-Crown",
   "version": "1.0.0",
   "minAppVersion": "0.15.0",
-  "description": "An intelligent writing assistant powered by Claude Code, featuring duplicate & edit workflows and context-aware suggestions.",
+  "description": "An intelligent writing assistant powered by Claude API, featuring duplicate & edit workflows and context-aware suggestions.",
   "author": "AKSDug",
   "authorUrl": "https://github.com/AKSDug",
   "fundingUrl": "https://github.com/sponsors/AKSDug",
   "isDesktopOnly": true,
-  "js": "main.js"
+  "js": "main.js",
+  "css": "styles.css"
 }

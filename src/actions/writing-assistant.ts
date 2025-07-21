@@ -1,3 +1,15 @@
+/**
+ * Triple-Crown Obsidian Plugin - Writing Assistant
+ * Copyright (c) 2024 AKSDug
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * See LICENSE file for full terms.
+ */
+
 import { App, Editor, MarkdownView, Notice, TFile } from 'obsidian';
 import { ClaudeService, ClaudeRequest } from '../claude-service';
 import * as path from 'path';

@@ -1,5 +1,16 @@
-import { App, Notice } from 'obsidian';
-import { spawn, ChildProcess } from 'child_process';
+/**
+ * Triple-Crown Obsidian Plugin - Claude Service
+ * Copyright (c) 2024 AKSDug
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * See LICENSE file for full terms.
+ */
+
+import { App, Notice, requestUrl } from 'obsidian';
 import { TripleCrownSettings } from './settings';
 import * as path from 'path';
 import * as fs from 'fs-extra';
@@ -21,11 +32,32 @@ export interface ClaudeResponse {
   }>;
 }
 
+interface ClaudeAPIMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+interface ClaudeAPIResponse {
+  id: string;
+  type: string;
+  role: string;
+  content: Array<{
+    type: string;
+    text: string;
+  }>;
+  model: string;
+  stop_reason: string;
+  stop_sequence: string | null;
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+  };
+}
+
 export class ClaudeService {
   private app: App;
   private settings: TripleCrownSettings;
-  private claudeProcess: ChildProcess | null = null;
-  private isInitialized = false;
+  private conversationHistory: ClaudeAPIMessage[] = [];
 
   constructor(app: App, settings: TripleCrownSettings) {
     this.app = app;
@@ -33,102 +65,150 @@ export class ClaudeService {
   }
 
   async initialize(): Promise<void> {
-    if (this.isInitialized) return;
-
-    try {
-      // Check if claude-code is available
-      const claudeCodePath = await this.findClaudeCodePath();
-      if (!claudeCodePath) {
-        throw new Error('Claude Code not found. Please install @anthropic-ai/claude-code');
-      }
-
-      this.isInitialized = true;
-    } catch (error) {
-      console.error('Failed to initialize Claude service:', error);
-      new Notice('Failed to initialize Claude service: ' + error.message);
+    if (!this.settings.apiKey) {
+      throw new Error('API key is required. Please add your Anthropic API key in settings.');
     }
-  }
-
-  private async findClaudeCodePath(): Promise<string | null> {
-    const possiblePaths = [
-      path.join(process.cwd(), 'node_modules', '.bin', 'claude-code'),
-      path.join(process.env.HOME || '', '.npm', 'bin', 'claude-code'),
-      'claude-code' // Global install
-    ];
-
-    for (const claudePath of possiblePaths) {
-      try {
-        if (await fs.pathExists(claudePath)) {
-          return claudePath;
-        }
-      } catch (error) {
-        // Continue to next path
-      }
-    }
-
-    return null;
   }
 
   async sendRequest(request: ClaudeRequest): Promise<ClaudeResponse> {
-    if (!this.isInitialized) {
-      await this.initialize();
+    if (!this.settings.apiKey) {
+      new Notice('Please configure your Anthropic API key in settings');
+      throw new Error('API key not configured');
     }
 
-    return new Promise((resolve, reject) => {
-      const args = ['--interactive'];
-      
-      if (this.settings.apiKey) {
-        args.push('--api-key', this.settings.apiKey);
+    try {
+      const systemPrompt = this.buildSystemPrompt(request);
+      const userMessage = this.buildUserMessage(request);
+
+      const response = await requestUrl({
+        url: this.settings.apiEndpoint,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': this.settings.apiKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: this.settings.modelName,
+          max_tokens: 4096,
+          system: systemPrompt,
+          messages: [
+            ...this.conversationHistory,
+            { role: 'user', content: userMessage }
+          ]
+        })
+      });
+
+      const apiResponse: ClaudeAPIResponse = response.json;
+      const responseText = apiResponse.content[0]?.text || '';
+
+      // Add to conversation history
+      this.conversationHistory.push(
+        { role: 'user', content: userMessage },
+        { role: 'assistant', content: responseText }
+      );
+
+      // Keep conversation history manageable
+      if (this.conversationHistory.length > 20) {
+        this.conversationHistory = this.conversationHistory.slice(-20);
       }
 
-      const claudeProcess = spawn('claude-code', args, {
-        cwd: this.getVaultPath(),
-        stdio: ['pipe', 'pipe', 'pipe']
-      });
+      return this.parseResponse(responseText, request.action);
+    } catch (error) {
+      console.error('Claude API error:', error);
+      if (error.status === 401) {
+        new Notice('Invalid API key. Please check your settings.');
+      } else if (error.status === 429) {
+        new Notice('Rate limit exceeded. Please try again later.');
+      } else {
+        new Notice(`Claude API error: ${error.message}`);
+      }
+      throw error;
+    }
+  }
 
-      let stdout = '';
-      let stderr = '';
+  private buildSystemPrompt(request: ClaudeRequest): string {
+    const basePrompt = `You are an intelligent writing assistant integrated into Obsidian. 
+You help users improve their notes and documents while preserving their original style and intent.`;
 
-      claudeProcess.stdout?.on('data', (data) => {
-        stdout += data.toString();
-      });
+    if (request.action === 'writing-assistant') {
+      return `${basePrompt}
+When improving text:
+- Preserve the author's voice and style
+- Fix grammar and spelling errors
+- Improve clarity and flow
+- Maintain formatting (Markdown)
+- Explain significant changes in your reasoning`;
+    }
 
-      claudeProcess.stderr?.on('data', (data) => {
-        stderr += data.toString();
-      });
+    if (request.action === 'duplicate-edit') {
+      return `${basePrompt}
+You are creating an improved version of a document. You should:
+- Show deletions using ~~strikethrough~~
+- Show additions using **bold**
+- Include reasoning for major changes in blockquotes
+- Preserve all links and formatting
+- Return the full edited document with changes marked`;
+    }
 
-      claudeProcess.on('close', (code) => {
-        if (code === 0) {
-          resolve(this.parseResponse(stdout));
-        } else {
-          reject(new Error(`Claude process exited with code ${code}: ${stderr}`));
+    return basePrompt;
+  }
+
+  private buildUserMessage(request: ClaudeRequest): string {
+    let message = request.prompt;
+
+    if (request.context) {
+      message = `Context:\n${request.context}\n\nRequest: ${message}`;
+    }
+
+    if (request.file) {
+      message = `File: ${request.file}\n\n${message}`;
+    }
+
+    return message;
+  }
+
+  private parseResponse(responseText: string, action?: string): ClaudeResponse {
+    // For duplicate-edit action, try to parse structured changes
+    if (action === 'duplicate-edit') {
+      const changes: ClaudeResponse['changes'] = [];
+      
+      // Simple heuristic to detect changes
+      const lines = responseText.split('\n');
+      lines.forEach((line, index) => {
+        if (line.includes('~~') && line.includes('~~')) {
+          changes.push({
+            type: 'deletion',
+            content: line,
+            line: index + 1
+          });
+        }
+        if (line.includes('**') && !line.includes('~~')) {
+          changes.push({
+            type: 'addition',
+            content: line,
+            line: index + 1
+          });
         }
       });
 
-      claudeProcess.on('error', (error) => {
-        reject(error);
-      });
+      // Extract reasoning from blockquotes
+      const reasoningMatch = responseText.match(/^>(.+?)$/gm);
+      const reasoning = reasoningMatch ? reasoningMatch.join('\n').replace(/^>/gm, '').trim() : undefined;
 
-      // Send the request
-      const requestData = JSON.stringify(request);
-      claudeProcess.stdin?.write(requestData);
-      claudeProcess.stdin?.end();
-    });
-  }
-
-  private parseResponse(output: string): ClaudeResponse {
-    try {
-      // Try to parse as JSON first
-      const jsonResponse = JSON.parse(output);
-      return jsonResponse;
-    } catch (error) {
-      // Fallback to plain text response
       return {
-        content: output,
-        reasoning: undefined,
-        changes: []
+        content: responseText,
+        reasoning,
+        changes
       };
     }
+
+    // Default response parsing
+    return {
+      content: responseText,
+      reasoning: undefined,
+      changes: []
+    };
   }
 
   async getContextForFile(filePath: string): Promise<string> {
@@ -136,8 +216,12 @@ export class ClaudeService {
     const relativePath = path.relative(vaultPath, filePath);
     
     try {
-      const content = await fs.readFile(filePath, 'utf-8');
-      return `File: ${relativePath}\n\n${content}`;
+      const file = this.app.vault.getAbstractFileByPath(relativePath);
+      if (file && 'extension' in file) {
+        const content = await this.app.vault.read(file);
+        return `File: ${relativePath}\n\n${content}`;
+      }
+      return `File: ${relativePath}\n\nError: File not found`;
     } catch (error) {
       console.error('Error reading file context:', error);
       return `File: ${relativePath}\n\nError reading file: ${error.message}`;
@@ -172,74 +256,35 @@ export class ClaudeService {
   }
 
   async cleanup(): Promise<void> {
-    if (this.claudeProcess) {
-      this.claudeProcess.kill();
-      this.claudeProcess = null;
-    }
-    this.isInitialized = false;
+    // Clear conversation history
+    this.conversationHistory = [];
   }
 
-  // Terminal-specific methods
+  // Terminal-specific methods for interactive sessions
   async startTerminalSession(): Promise<void> {
-    if (this.claudeProcess) {
-      return; // Already running
-    }
-
-    const args = ['--interactive', '--terminal'];
-    
-    if (this.settings.apiKey) {
-      args.push('--api-key', this.settings.apiKey);
-    }
-
-    this.claudeProcess = spawn('claude-code', args, {
-      cwd: this.getVaultPath(),
-      stdio: ['pipe', 'pipe', 'pipe']
-    });
-
-    this.claudeProcess.on('error', (error) => {
-      console.error('Claude terminal process error:', error);
-      new Notice('Claude terminal error: ' + error.message);
-    });
-
-    this.claudeProcess.on('close', (code) => {
-      console.log(`Claude terminal process exited with code ${code}`);
-      this.claudeProcess = null;
-    });
+    // Clear history for new session
+    this.conversationHistory = [];
+    console.log('Started new Claude terminal session');
   }
 
   async sendTerminalCommand(command: string): Promise<string> {
-    if (!this.claudeProcess) {
-      await this.startTerminalSession();
+    try {
+      const response = await this.sendRequest({
+        prompt: command,
+        action: 'terminal'
+      });
+      return response.content;
+    } catch (error) {
+      return `Error: ${error.message}`;
     }
-
-    return new Promise((resolve, reject) => {
-      let output = '';
-      
-      const onData = (data: Buffer) => {
-        output += data.toString();
-      };
-
-      const onError = (error: Error) => {
-        this.claudeProcess?.stdout?.off('data', onData);
-        reject(error);
-      };
-
-      this.claudeProcess?.stdout?.on('data', onData);
-      this.claudeProcess?.on('error', onError);
-
-      // Send command
-      this.claudeProcess?.stdin?.write(command + '\n');
-
-      // Set timeout for response
-      setTimeout(() => {
-        this.claudeProcess?.stdout?.off('data', onData);
-        this.claudeProcess?.off('error', onError);
-        resolve(output);
-      }, 5000);
-    });
   }
 
   isTerminalActive(): boolean {
-    return this.claudeProcess !== null;
+    // Terminal is always "active" when API key is configured
+    return !!this.settings.apiKey;
+  }
+
+  clearConversationHistory(): void {
+    this.conversationHistory = [];
   }
 }

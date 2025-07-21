@@ -1,6 +1,19 @@
+/**
+ * Triple-Crown Obsidian Plugin - Settings
+ * Copyright (c) 2024 AKSDug
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * See LICENSE file for full terms.
+ */
+
 export interface TripleCrownSettings {
   apiKey: string;
-  useOAuth: boolean;
+  apiEndpoint: string;
+  modelName: string;
   autoSaveDuplicates: boolean;
   showInlineChanges: boolean;
   includeReasoning: boolean;
@@ -29,7 +42,8 @@ export interface TripleCrownSettings {
 
 export const DEFAULT_SETTINGS: TripleCrownSettings = {
   apiKey: '',
-  useOAuth: true,
+  apiEndpoint: 'https://api.anthropic.com/v1/messages',
+  modelName: 'claude-3-5-sonnet-20241022',
   autoSaveDuplicates: true,
   showInlineChanges: true,
   includeReasoning: true,

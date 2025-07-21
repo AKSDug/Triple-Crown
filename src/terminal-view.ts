@@ -1,3 +1,15 @@
+/**
+ * Triple-Crown Obsidian Plugin - Terminal View
+ * Copyright (c) 2024 AKSDug
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * See LICENSE file for full terms.
+ */
+
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { ClaudeService } from './claude-service';
 
@@ -79,100 +91,11 @@ export class TerminalView extends ItemView {
       }
     });
 
-    this.input.addEventListener('focus', () => {
-      this.input.style.outline = '1px solid var(--interactive-accent)';
-    });
-
-    this.input.addEventListener('blur', () => {
-      this.input.style.outline = 'none';
-    });
+    // Focus/blur styles handled by CSS
   }
 
   private setupStyles(): void {
-    const style = document.createElement('style');
-    style.textContent = `
-      .claude-terminal {
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        background: var(--background-primary);
-        font-family: var(--font-monospace);
-        font-size: 14px;
-        padding: 10px;
-      }
-
-      .claude-terminal-output {
-        flex: 1;
-        overflow-y: auto;
-        padding: 10px 0;
-        white-space: pre-wrap;
-        word-wrap: break-word;
-      }
-
-      .claude-terminal-input-container {
-        display: flex;
-        align-items: center;
-        border-top: 1px solid var(--background-modifier-border);
-        padding-top: 10px;
-      }
-
-      .claude-terminal-prompt {
-        color: var(--text-accent);
-        font-weight: bold;
-        margin-right: 8px;
-      }
-
-      .claude-terminal-input {
-        flex: 1;
-        background: transparent;
-        border: none;
-        color: var(--text-normal);
-        font-family: var(--font-monospace);
-        font-size: 14px;
-        padding: 4px 8px;
-        border-radius: 4px;
-        background: var(--background-modifier-form-field);
-      }
-
-      .claude-terminal-input:focus {
-        outline: 1px solid var(--interactive-accent);
-      }
-
-      .claude-terminal-message {
-        margin: 8px 0;
-        padding: 8px;
-        border-radius: 4px;
-      }
-
-      .claude-terminal-message.user {
-        background: var(--background-modifier-hover);
-        border-left: 3px solid var(--interactive-accent);
-      }
-
-      .claude-terminal-message.claude {
-        background: var(--background-secondary);
-        border-left: 3px solid var(--text-accent);
-      }
-
-      .claude-terminal-message.system {
-        background: var(--background-modifier-error);
-        border-left: 3px solid var(--text-error);
-        color: var(--text-error);
-      }
-
-      .claude-terminal-message.processing {
-        background: var(--background-modifier-success);
-        border-left: 3px solid var(--text-success);
-        color: var(--text-muted);
-      }
-
-      .claude-terminal-timestamp {
-        font-size: 12px;
-        color: var(--text-muted);
-        margin-right: 8px;
-      }
-    `;
-    document.head.appendChild(style);
+    // Styles are now loaded from styles.css
   }
 
   private addWelcomeMessage(): void {

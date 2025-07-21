@@ -31,12 +31,12 @@ An Obsidian plugin that integrates Claude Code as an intelligent writing assista
 1. Download the plugin files
 2. Place in your Obsidian plugins folder: `~/.obsidian/plugins/triple-crown/`
 3. Enable the plugin in Obsidian settings
-4. Install claude-code npm package: `npm install -g @anthropic-ai/claude-code`
+4. Configure your Anthropic API key in the plugin settings
 
 ## Configuration
 
 ### Global Settings
-- **API Key**: Your Anthropic API key (optional if using OAuth)
+- **API Key**: Your Anthropic API key (required)
 - **Auto-save duplicates**: Automatically save duplicate & edit results
 - **Show inline changes**: Display strikethrough deletions and bold additions
 - **Include reasoning**: Add Claude's reasoning in blockquotes
@@ -104,15 +104,43 @@ ln -s $(pwd) ~/.obsidian/plugins/triple-crown
 ## Requirements
 
 - Obsidian 0.15.0 or higher
-- Node.js 16+ (for claude-code npm package)
+- Anthropic API key (get one at https://console.anthropic.com)
 - Desktop only (mobile support planned)
 
 ## License
 
-MIT
+**GPL v3 - Free & Open Source Software**
+
+This project is licensed under the GNU General Public License v3.0.
+
+### ✅ What You CAN Do (FREE)
+- **Use anywhere**: Personal, business, commercial, enterprise - completely free
+- **Modify the code**: Change, improve, and customize the plugin
+- **Redistribute**: Share copies with others
+- **Commercial use**: Use in business operations without any fees
+- **Study the source**: Learn from and analyze the code
+
+### 📋 GPL v3 Requirements
+If you distribute this software (original or modified):
+- **Include the license**: Keep the GPL v3 license with any copies
+- **Share source code**: Make source code available for distributed versions
+- **Same license**: Any modifications must also be GPL v3
+- **Document changes**: Note what you've modified
+
+### 🚀 Why GPL v3?
+- **Business-friendly**: Free commercial use with no licensing fees
+- **Community-driven**: Improvements benefit everyone
+- **Code protection**: Prevents proprietary forks that don't share improvements
+- **Patent protection**: Includes patent protection clauses
+
+### 💡 Simple Summary
+- **Use it freely** for any purpose including commercial
+- **If you share it**, you must share the source code too
+- **If you improve it**, please share your improvements
+
+See the [LICENSE](LICENSE) file for complete terms.
 
 ## Support
 
 - Report issues on GitHub
-- Check the dev-log.md for development status
 - Review .claude/config.json for configuration examples

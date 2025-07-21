@@ -1,3 +1,15 @@
+/**
+ * Triple-Crown Obsidian Plugin
+ * Copyright (c) 2024 AKSDug
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ * 
+ * See LICENSE file for full terms.
+ */
+
 import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView } from 'obsidian';
 import { ClaudeService } from './src/claude-service';
 import { TripleCrownSettings, DEFAULT_SETTINGS } from './src/settings';
@@ -114,9 +126,11 @@ class TripleCrownSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
+    containerEl.createEl('h2', { text: 'API Configuration' });
+
     new Setting(containerEl)
       .setName('Claude API Key')
-      .setDesc('Your Anthropic API key (optional if using OAuth)')
+      .setDesc('Your Anthropic API key (required). Get one at https://console.anthropic.com')
       .addText(text => text
         .setPlaceholder('sk-ant-...')
         .setValue(this.plugin.settings.apiKey)
@@ -124,6 +138,32 @@ class TripleCrownSettingTab extends PluginSettingTab {
           this.plugin.settings.apiKey = value;
           await this.plugin.saveSettings();
         }));
+
+    new Setting(containerEl)
+      .setName('API Endpoint')
+      .setDesc('Claude API endpoint URL (leave default unless using a proxy)')
+      .addText(text => text
+        .setPlaceholder('https://api.anthropic.com/v1/messages')
+        .setValue(this.plugin.settings.apiEndpoint)
+        .onChange(async (value) => {
+          this.plugin.settings.apiEndpoint = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Model Name')
+      .setDesc('Claude model to use for requests')
+      .addDropdown(dropdown => dropdown
+        .addOption('claude-3-5-sonnet-20241022', 'Claude 3.5 Sonnet (Latest)')
+        .addOption('claude-3-5-haiku-20241022', 'Claude 3.5 Haiku')
+        .addOption('claude-3-opus-20240229', 'Claude 3 Opus')
+        .setValue(this.plugin.settings.modelName)
+        .onChange(async (value) => {
+          this.plugin.settings.modelName = value;
+          await this.plugin.saveSettings();
+        }));
+
+    containerEl.createEl('h2', { text: 'Feature Settings' });
 
     new Setting(containerEl)
       .setName('Auto-save duplicates')
