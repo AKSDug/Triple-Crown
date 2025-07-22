@@ -12,15 +12,18 @@
 
 import { App, Editor, MarkdownView, Notice, TFile } from 'obsidian';
 import { ClaudeService, ClaudeRequest } from '../claude-service';
+import { VaultBoundary } from '../security/vault-boundary';
 import * as path from 'path';
 
 export class WritingAssistantAction {
   private app: App;
   private claudeService: ClaudeService;
+  private vaultBoundary: VaultBoundary;
 
   constructor(app: App, claudeService: ClaudeService) {
     this.app = app;
     this.claudeService = claudeService;
+    this.vaultBoundary = new VaultBoundary(app);
   }
 
   async execute(editor: Editor, view: MarkdownView): Promise<void> {
@@ -106,6 +109,15 @@ export class WritingAssistantAction {
 
   private async createDuplicateFile(originalFile: TFile, editedContent: string, reasoning?: string): Promise<TFile> {
     const originalPath = originalFile.path;
+    
+    // Security check: ensure original file is within vault
+    const vaultPath = (this.app.vault.adapter as any).path || '';
+    const absoluteOriginalPath = path.join(vaultPath, originalPath);
+    
+    if (!this.vaultBoundary.validateFileOperation(absoluteOriginalPath, 'read')) {
+      throw new Error('Security: Original file access denied');
+    }
+    
     const dir = path.dirname(originalPath);
     const baseName = path.basename(originalPath, path.extname(originalPath));
     const ext = path.extname(originalPath);
@@ -113,6 +125,12 @@ export class WritingAssistantAction {
     const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
     const duplicateName = `${baseName}-claude-edit-${timestamp}${ext}`;
     const duplicatePath = path.join(dir, duplicateName);
+    const absoluteDuplicatePath = path.join(vaultPath, duplicatePath);
+    
+    // Security check: ensure duplicate file will be within vault
+    if (!this.vaultBoundary.validateFileOperation(absoluteDuplicatePath, 'write')) {
+      throw new Error('Security: Cannot create duplicate file outside vault');
+    }
 
     // Build content with metadata
     let content = editedContent;

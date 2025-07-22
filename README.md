@@ -107,6 +107,36 @@ ln -s $(pwd) ~/.obsidian/plugins/triple-crown
 - Anthropic API key (get one at https://console.anthropic.com)
 - Desktop only (mobile support planned)
 
+## 🔒 Security & Privacy
+
+Triple-Crown is designed with security in mind:
+
+### Vault Boundary Protection
+- **File Access**: Claude can ONLY access files within your current Obsidian vault
+- **No System Access**: Cannot browse your computer or access files outside the vault
+- **Path Validation**: All file operations are validated to prevent directory traversal
+- **Hidden File Protection**: Blocks access to .obsidian config and other hidden files (except .claude)
+
+### Privacy Features
+- **Local Processing**: All file operations happen locally within Obsidian
+- **Web Search Only**: When requested, Claude can access web content but no local system data
+- **Configuration Respect**: Honors .claude folder privacy settings
+- **Size Limits**: File access limited to reasonable sizes (10MB default)
+
+### What Claude CAN Do
+- ✅ Read and analyze files within your vault
+- ✅ Create new files within your vault
+- ✅ Search the web when specifically requested
+- ✅ Improve and edit your documents
+- ✅ Respect your privacy configurations
+
+### What Claude CANNOT Do
+- ❌ Access files outside your vault directory
+- ❌ Browse your computer or file system
+- ❌ Access other applications or processes
+- ❌ Read system configuration files
+- ❌ Explore your personal directories
+
 ## License
 
 **GPL v3 - Free & Open Source Software**

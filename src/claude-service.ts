@@ -12,6 +12,7 @@
 
 import { App, Notice, requestUrl } from 'obsidian';
 import { TripleCrownSettings } from './settings';
+import { VaultBoundary, SecurityContext } from './security/vault-boundary';
 import * as path from 'path';
 import * as fs from 'fs-extra';
 
@@ -58,10 +59,14 @@ export class ClaudeService {
   private app: App;
   private settings: TripleCrownSettings;
   private conversationHistory: ClaudeAPIMessage[] = [];
+  private vaultBoundary: VaultBoundary;
+  private securityContext: SecurityContext;
 
   constructor(app: App, settings: TripleCrownSettings) {
     this.app = app;
     this.settings = settings;
+    this.vaultBoundary = new VaultBoundary(app);
+    this.securityContext = this.vaultBoundary.createSecurityContext();
   }
 
   async initialize(): Promise<void> {
@@ -128,27 +133,51 @@ export class ClaudeService {
   }
 
   private buildSystemPrompt(request: ClaudeRequest): string {
+    const vaultPath = this.securityContext.vaultPath;
     const basePrompt = `You are an intelligent writing assistant integrated into Obsidian. 
-You help users improve their notes and documents while preserving their original style and intent.`;
+You help users improve their notes and documents while preserving their original style and intent.
+
+SECURITY CONSTRAINTS:
+- You can ONLY access files within the vault directory: ${vaultPath}
+- You CANNOT access any files outside the vault
+- You CANNOT browse the user's computer or file system beyond the vault
+- You can access web content when requested
+- You must respect .claude folder configurations for privacy settings
+
+ALLOWED OPERATIONS:
+- Read and analyze files within the vault
+- Suggest improvements to documents
+- Create new content within the vault
+- Search for information on the web when specifically requested
+
+BLOCKED OPERATIONS:
+- Accessing files outside the vault directory
+- Browsing system files or directories
+- Accessing other applications or processes
+- Reading configuration files outside the vault`;
 
     if (request.action === 'writing-assistant') {
       return `${basePrompt}
+
 When improving text:
 - Preserve the author's voice and style
 - Fix grammar and spelling errors
 - Improve clarity and flow
 - Maintain formatting (Markdown)
-- Explain significant changes in your reasoning`;
+- Explain significant changes in your reasoning
+- Only reference files within the vault`;
     }
 
     if (request.action === 'duplicate-edit') {
       return `${basePrompt}
+
 You are creating an improved version of a document. You should:
 - Show deletions using ~~strikethrough~~
 - Show additions using **bold**
 - Include reasoning for major changes in blockquotes
 - Preserve all links and formatting
-- Return the full edited document with changes marked`;
+- Return the full edited document with changes marked
+- Only work with files within the vault directory`;
     }
 
     return basePrompt;
@@ -212,13 +241,32 @@ You are creating an improved version of a document. You should:
   }
 
   async getContextForFile(filePath: string): Promise<string> {
+    // Security check: ensure file is within vault boundaries
+    const sanitizedPath = this.vaultBoundary.sanitizePath(filePath);
+    if (!sanitizedPath) {
+      console.warn('Security: Blocked access to file outside vault:', filePath);
+      return `Error: Access denied - file is outside vault boundaries`;
+    }
+
+    // Validate file operation
+    if (!this.vaultBoundary.validateFileOperation(sanitizedPath, 'read')) {
+      console.warn('Security: Blocked read operation:', filePath);
+      return `Error: Access denied - file access not permitted`;
+    }
+
     const vaultPath = this.getVaultPath();
-    const relativePath = path.relative(vaultPath, filePath);
+    const relativePath = path.relative(vaultPath, sanitizedPath);
     
     try {
       const file = this.app.vault.getAbstractFileByPath(relativePath);
       if (file && 'extension' in file) {
         const content = await this.app.vault.read(file);
+        
+        // Check file size limits
+        if (content.length > this.securityContext.maxFileSize) {
+          return `File: ${relativePath}\n\nError: File too large (${content.length} bytes, max ${this.securityContext.maxFileSize} bytes)`;
+        }
+        
         return `File: ${relativePath}\n\n${content}`;
       }
       return `File: ${relativePath}\n\nError: File not found`;
@@ -229,22 +277,45 @@ You are creating an improved version of a document. You should:
   }
 
   async findClaudeConfig(startPath: string): Promise<any> {
+    // Security check: ensure start path is within vault
+    const sanitizedStartPath = this.vaultBoundary.sanitizePath(startPath);
+    if (!sanitizedStartPath) {
+      console.warn('Security: Blocked config search outside vault:', startPath);
+      return null;
+    }
+
     const vaultPath = this.getVaultPath();
-    let currentPath = startPath;
+    let currentPath = sanitizedStartPath;
 
     while (currentPath.startsWith(vaultPath)) {
       const configPath = path.join(currentPath, '.claude', 'config.json');
       
+      // Validate config file access
+      if (!this.vaultBoundary.validateFileOperation(configPath, 'read')) {
+        console.warn('Security: Blocked config read:', configPath);
+        break;
+      }
+      
       try {
         if (await fs.pathExists(configPath)) {
-          return await fs.readJson(configPath);
+          const config = await fs.readJson(configPath);
+          
+          // Validate config size
+          const configString = JSON.stringify(config);
+          if (configString.length > 100000) { // 100KB limit for config
+            console.warn('Security: Config file too large:', configPath);
+            return null;
+          }
+          
+          return config;
         }
       } catch (error) {
+        console.warn('Error reading config file:', error.message);
         // Continue searching upward
       }
 
       const parentPath = path.dirname(currentPath);
-      if (parentPath === currentPath) break;
+      if (parentPath === currentPath || !parentPath.startsWith(vaultPath)) break;
       currentPath = parentPath;
     }
 
