@@ -19,12 +19,13 @@ An Obsidian plugin that integrates Claude Code as an intelligent writing assista
 - Never modifies originals - completely non-destructive
 
 ### 🎬 Available Actions
-- **writing-assistant**: Improve, expand, or simplify text
-- **tag-builder**: Generate smart tags for content
-- **connection-finder**: Discover note relationships
-- **therapist-mode**: Reflective journaling assistance
-- **code-reviewer**: Review and improve code
-- **peer-reviewer**: Academic peer review
+- **writing-assistant**: Improve, expand, or simplify text ✅ *enabled by default*
+- **tag-builder**: Generate smart tags for content ✅ *enabled by default*
+- **connection-finder**: Discover note relationships ✅ *enabled by default*
+- **therapist-mode**: Reflective journaling assistance ⚠️ *disabled by default for privacy*
+- **code-reviewer**: Review and improve code ✅ *enabled by default*
+- **peer-reviewer**: Academic peer review ✅ *enabled by default*
+- **custom-actions**: Create your own actions with custom prompts 🎯 *user-defined*
 
 ## Installation
 
@@ -81,6 +82,151 @@ Create `.claude/config.json` in any folder:
 2. Use Command Palette: "Duplicate & Edit"
 3. Claude creates an improved version in a new file
 4. Original file gets automatic backlink to edited version
+
+## 🎯 Action Management
+
+### Enabling/Disabling Actions
+
+#### Method 1: Plugin Settings (Recommended)
+1. Go to **Settings** → **Community Plugins** → **Triple-Crown**
+2. Scroll to the **Actions** section
+3. Toggle any action on/off:
+   - ✅ **Writing Assistant** - AI-powered writing assistance and editing
+   - ✅ **Tag Builder** - Automatically generate relevant tags for your content
+   - ✅ **Connection Finder** - Discover relationships between notes and concepts
+   - ⚠️ **Therapist Mode** - Reflective journaling assistant (*disabled by default for privacy*)
+   - ✅ **Code Reviewer** - Technical code review focusing on security and best practices
+   - ✅ **Peer Reviewer** - Academic peer review for research papers and scholarly writing
+
+#### Method 2: Command Palette Access
+Once enabled, all actions are available via Command Palette (`Ctrl/Cmd + P`):
+- "Generate Tags" - Analyzes content and suggests relevant tags
+- "Find Connections" - Discovers relationships and cross-references
+- "Therapist Mode (Reflection)" - Provides reflective insights and questions
+- "Review Code" - Analyzes selected code for security and best practices
+- "Academic Peer Review" - Provides scholarly review of research content
+
+### 📝 Custom Actions
+
+Create unlimited custom actions with your own prompts and behaviors.
+
+#### Creating a Custom Action
+1. Go to **Settings** → **Community Plugins** → **Triple-Crown**
+2. Scroll to **Custom Actions** section
+3. Click **"Add Custom Action"**
+4. Fill out the form:
+   - **Action Name**: Display name (e.g., "Grammar Check")
+   - **Description**: Brief explanation of what it does
+   - **Category**: Choose from Writing, Analysis, Organization, Review, or Custom
+   - **Requires Selection**: Toggle if action needs selected text
+   - **System Prompt**: Define how Claude should behave for this action
+
+#### Custom Action Examples
+
+**Grammar & Style Checker:**
+```
+You are a professional editor focused on grammar, style, and clarity.
+
+GUIDELINES:
+- Fix grammatical errors and typos
+- Improve sentence structure and flow
+- Suggest better word choices
+- Maintain the author's voice and tone
+- Provide brief explanations for major changes
+
+OUTPUT FORMAT:
+Return the corrected text followed by a brief summary of changes made.
+```
+
+**Meeting Notes Summarizer:**
+```
+You are an executive assistant who creates concise meeting summaries.
+
+TASK:
+- Identify key decisions and action items
+- List attendees and their main contributions
+- Highlight next steps and deadlines
+- Format as structured summary
+
+OUTPUT FORMAT:
+## Meeting Summary
+**Date:** [date]
+**Attendees:** [list]
+
+### Key Decisions
+- [decision points]
+
+### Action Items
+- [who] - [what] - [when]
+
+### Next Meeting
+[date and agenda items]
+```
+
+**Research Paper Outline Generator:**
+```
+You are an academic writing specialist who creates structured research outlines.
+
+ANALYSIS:
+- Identify the main research question or thesis
+- Suggest logical section organization
+- Recommend evidence and citation strategies
+- Ensure academic rigor and clarity
+
+OUTPUT FORMAT:
+# [Paper Title]
+
+## I. Introduction
+- Hook and context
+- Literature gap
+- Research question
+- Thesis statement
+
+## II. Literature Review
+[sections based on themes]
+
+## III. Methodology
+[research approach]
+
+## IV. Analysis
+[main arguments with evidence]
+
+## V. Conclusion
+- Summary of findings
+- Implications
+- Future research
+```
+
+#### Managing Custom Actions
+- **Enable/Disable**: Toggle any custom action on/off
+- **Delete**: Remove custom actions you no longer need
+- **Edit**: Currently requires deleting and recreating (improvement planned)
+
+#### Custom Action Tips
+1. **Be Specific**: Clear prompts produce better results
+2. **Define Output Format**: Tell Claude exactly how to structure responses
+3. **Set Context**: Explain the role Claude should take
+4. **Test Iteratively**: Refine prompts based on results
+5. **Use Categories**: Organize actions for easy discovery
+
+#### Custom Action Limitations
+- **Plugin Reload Required**: New actions require restarting Obsidian to register commands
+- **Markdown Only**: Custom actions currently work only with `.md` files
+- **No Dynamic Updates**: Prompt changes require creating a new action
+
+### Action Security Notes
+- All actions respect vault boundary protection
+- Actions cannot access files outside your Obsidian vault
+- Custom prompts are stored locally in plugin settings
+- No custom action data is sent to external services beyond the Claude API call
+
+### 📖 Complete Actions Documentation
+For detailed guides, examples, and troubleshooting, see **[ACTIONS-GUIDE.md](ACTIONS-GUIDE.md)**:
+- Step-by-step enabling instructions
+- 20+ custom action examples
+- Prompt engineering best practices
+- Troubleshooting common issues
+- Performance optimization tips
 
 ## Development
 

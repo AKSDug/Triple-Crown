@@ -10,6 +10,8 @@
  * See LICENSE file for full terms.
  */
 
+import { CustomActionDefinition } from './actions/base-action';
+
 export interface TripleCrownSettings {
   apiKey: string;
   apiEndpoint: string;
@@ -27,6 +29,7 @@ export interface TripleCrownSettings {
     codeReviewer: boolean;
     peerReviewer: boolean;
   };
+  customActions: CustomActionDefinition[];
   privacySettings: {
     neverSharePatterns: string[];
     requireConfirmation: boolean;
@@ -57,6 +60,7 @@ export const DEFAULT_SETTINGS: TripleCrownSettings = {
     codeReviewer: true,
     peerReviewer: true
   },
+  customActions: [],
   privacySettings: {
     neverSharePatterns: [
       '*.key',

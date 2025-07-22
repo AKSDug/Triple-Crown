@@ -208,3 +208,67 @@
   background: var(--background-modifier-hover);
   border-radius: 4px;
 }
+
+/* Custom Action Styles */
+.custom-action-item {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 12px 0;
+}
+
+.custom-action-item h4 {
+  margin: 0 0 8px 0;
+  color: var(--text-normal);
+}
+
+.custom-action-item p {
+  margin: 0 0 12px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.custom-action-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.custom-action-controls .setting-item {
+  margin: 0;
+  border: none;
+  padding: 0;
+}
+
+.modal-button-container {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.modal-button-container button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.modal-button-container button:hover {
+  background: var(--background-modifier-hover);
+}
+
+.modal-button-container button.mod-cta {
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  border-color: var(--interactive-accent);
+}
+
+.modal-button-container button.mod-cta:hover {
+  background: var(--interactive-accent-hover);
+}
