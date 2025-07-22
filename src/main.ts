@@ -10,18 +10,22 @@
  * See LICENSE file for full terms.
  */
 
-import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, Modal, TextComponent, TextAreaComponent, DropdownComponent, ToggleComponent } from 'obsidian';
-import { ClaudeService } from './src/claude-service';
-import { TripleCrownSettings, DEFAULT_SETTINGS } from './src/settings';
-import { TerminalView, TERMINAL_VIEW_TYPE } from './src/terminal-view';
-import { WritingAssistantAction } from './src/actions/writing-assistant';
-import { TagBuilderAction } from './src/actions/tag-builder';
-import { ConnectionFinderAction } from './src/actions/connection-finder';
-import { TherapistModeAction } from './src/actions/therapist-mode';
-import { CodeReviewerAction } from './src/actions/code-reviewer';
-import { PeerReviewerAction } from './src/actions/peer-reviewer';
-import { CustomActionManager } from './src/actions/custom-action';
-import { CustomActionDefinition, ActionCategory } from './src/actions/base-action';
+import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, MarkdownView, Modal, TextComponent, TextAreaComponent, DropdownComponent, ToggleComponent, Notice } from 'obsidian';
+import { ClaudeService } from './claude-service';
+import { TripleCrownSettings, DEFAULT_SETTINGS } from './settings';
+import { TerminalView, TERMINAL_VIEW_TYPE } from './terminal-view';
+import { WritingAssistantAction } from './actions/writing-assistant';
+import { TagBuilderAction } from './actions/tag-builder';
+import { ConnectionFinderAction } from './actions/connection-finder';
+import { TherapistModeAction } from './actions/therapist-mode';
+import { CodeReviewerAction } from './actions/code-reviewer';
+import { PeerReviewerAction } from './actions/peer-reviewer';
+import { ResearchAssistantAction } from './actions/research-assistant';
+import { CustomActionManager } from './actions/custom-action';
+import { CustomActionDefinition, ActionCategory } from './actions/base-action';
+import { PluginEcosystemDetector } from './plugin-ecosystem';
+import { EnhancedTerminalService } from './enhanced-terminal';
+import { ContextGenerator } from './context-generator';
 
 export default class TripleCrownPlugin extends Plugin {
   settings: TripleCrownSettings;
@@ -32,7 +36,11 @@ export default class TripleCrownPlugin extends Plugin {
   therapistMode: TherapistModeAction;
   codeReviewer: CodeReviewerAction;
   peerReviewer: PeerReviewerAction;
+  researchAssistant: ResearchAssistantAction;
   customActionManager: CustomActionManager;
+  pluginDetector: PluginEcosystemDetector;
+  enhancedTerminal: EnhancedTerminalService;
+  contextGenerator: ContextGenerator;
 
   async onload() {
     await this.loadSettings();
@@ -47,6 +55,16 @@ export default class TripleCrownPlugin extends Plugin {
     this.therapistMode = new TherapistModeAction(this.app, this.claudeService);
     this.codeReviewer = new CodeReviewerAction(this.app, this.claudeService);
     this.peerReviewer = new PeerReviewerAction(this.app, this.claudeService);
+    this.researchAssistant = new ResearchAssistantAction(this.app, this.claudeService);
+    
+    // Initialize ecosystem detection and enhanced terminal
+    this.pluginDetector = new PluginEcosystemDetector(this.app);
+    this.enhancedTerminal = new EnhancedTerminalService(this.app, this.claudeService, this.settings);
+    
+    // Initialize context generator
+    this.contextGenerator = new ContextGenerator(this.app, this.settings, this.pluginDetector);
+    await this.contextGenerator.initializeOrUpdateContext();
+    this.contextGenerator.updateContextPeriodically();
     
     // Initialize custom action manager
     this.customActionManager = new CustomActionManager(this.app, this.claudeService);
@@ -55,10 +73,10 @@ export default class TripleCrownPlugin extends Plugin {
     // Register custom action commands
     this.registerCustomActionCommands();
 
-    // Register terminal view
+    // Register terminal view (use enhanced terminal)
     this.registerView(
       TERMINAL_VIEW_TYPE,
-      (leaf) => new TerminalView(leaf, this.claudeService)
+      (leaf) => new TerminalView(leaf, this.enhancedTerminal)
     );
 
     // Add ribbon icon
@@ -152,6 +170,17 @@ export default class TripleCrownPlugin extends Plugin {
       }
     });
 
+    this.addCommand({
+      id: 'research-assistant',
+      name: 'Research Assistant',
+      editorCallback: (editor, ctx) => {
+        const view = ctx as MarkdownView;
+        if (view && this.settings.enabledActions.researchAssistant) {
+          this.researchAssistant.execute(editor, view);
+        }
+      }
+    });
+
     // Add settings tab
     this.addSettingTab(new TripleCrownSettingTab(this.app, this));
 
@@ -232,18 +261,61 @@ class TripleCrownSettingTab extends PluginSettingTab {
 
     containerEl.empty();
 
-    containerEl.createEl('h2', { text: 'API Configuration' });
+    containerEl.createEl('h2', { text: 'Connection Configuration' });
 
     new Setting(containerEl)
-      .setName('Claude API Key')
-      .setDesc('Your Anthropic API key (required). Get one at https://console.anthropic.com')
-      .addText(text => text
-        .setPlaceholder('sk-ant-...')
-        .setValue(this.plugin.settings.apiKey)
+      .setName('Connection Mode')
+      .setDesc('Choose how to connect to Claude: API (requires key), CLI (Pro/Max subscribers), or Hybrid (CLI with API fallback)')
+      .addDropdown(dropdown => dropdown
+        .addOption('api', 'API Only (requires API key)')
+        .addOption('cli', 'Claude-Code CLI (Pro/Max subscribers)')
+        .addOption('hybrid', 'Hybrid (CLI preferred, API fallback)')
+        .setValue(this.plugin.settings.connectionMode)
         .onChange(async (value) => {
-          this.plugin.settings.apiKey = value;
+          this.plugin.settings.connectionMode = value as any;
           await this.plugin.saveSettings();
+          this.display(); // Refresh to show/hide relevant settings
         }));
+
+    // Show API settings if API mode is enabled
+    if (this.plugin.settings.connectionMode === 'api' || this.plugin.settings.connectionMode === 'hybrid') {
+      new Setting(containerEl)
+        .setName('Claude API Key')
+        .setDesc('Your Anthropic API key. Get one at https://console.anthropic.com')
+        .addText(text => text
+          .setPlaceholder('sk-ant-...')
+          .setValue(this.plugin.settings.apiKey)
+          .onChange(async (value) => {
+            this.plugin.settings.apiKey = value;
+            await this.plugin.saveSettings();
+          }));
+    }
+
+    // Show CLI settings if CLI mode is enabled  
+    if (this.plugin.settings.connectionMode === 'cli' || this.plugin.settings.connectionMode === 'hybrid') {
+      new Setting(containerEl)
+        .setName('Claude CLI Path')
+        .setDesc('Path to claude-code CLI executable (leave default if installed globally)')
+        .addText(text => text
+          .setPlaceholder('claude-code')
+          .setValue(this.plugin.settings.cliPath)
+          .onChange(async (value) => {
+            this.plugin.settings.cliPath = value;
+            await this.plugin.saveSettings();
+          }));
+
+      if (this.plugin.settings.connectionMode === 'hybrid') {
+        new Setting(containerEl)
+          .setName('Fallback to API')
+          .setDesc('Use API if CLI fails (requires API key)')
+          .addToggle(toggle => toggle
+            .setValue(this.plugin.settings.fallbackToAPI)
+            .onChange(async (value) => {
+              this.plugin.settings.fallbackToAPI = value;
+              await this.plugin.saveSettings();
+            }));
+      }
+    }
 
     new Setting(containerEl)
       .setName('API Endpoint')
@@ -362,6 +434,84 @@ class TripleCrownSettingTab extends PluginSettingTab {
           this.plugin.settings.enabledActions.peerReviewer = value;
           await this.plugin.saveSettings();
         }));
+
+    new Setting(containerEl)
+      .setName('Research Assistant')
+      .setDesc('Aggregate sources, create link trees, and organize research materials')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.enabledActions.researchAssistant)
+        .onChange(async (value) => {
+          this.plugin.settings.enabledActions.researchAssistant = value;
+          await this.plugin.saveSettings();
+        }));
+
+    containerEl.createEl('h2', { text: 'Enhanced Terminal' });
+
+    new Setting(containerEl)
+      .setName('Enable General Tools')
+      .setDesc('Allow terminal to execute general development and analysis tools beyond Claude')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.terminalSettings.enableGeneralTools)
+        .onChange(async (value) => {
+          this.plugin.settings.terminalSettings.enableGeneralTools = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Allow Sandboxed Execution')
+      .setDesc('Enable sandboxed code execution (requires confirmation for safety)')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.terminalSettings.allowSandboxedExecution)
+        .onChange(async (value) => {
+          this.plugin.settings.terminalSettings.allowSandboxedExecution = value;
+          await this.plugin.saveSettings();
+        }));
+
+    containerEl.createEl('h2', { text: 'Plugin Integration' });
+
+    new Setting(containerEl)
+      .setName('Detect Installed Plugins')
+      .setDesc('Automatically detect other Obsidian plugins to enhance Claude prompts and formatting')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginIntegration.detectInstalledPlugins)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginIntegration.detectInstalledPlugins = value;
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      .setName('Enable Cross-Plugin Features')
+      .setDesc('Allow Triple-Crown to use capabilities from other plugins (e.g., Dataview queries, Templater syntax)')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.pluginIntegration.enableCrossPluginFeatures)
+        .onChange(async (value) => {
+          this.plugin.settings.pluginIntegration.enableCrossPluginFeatures = value;
+          await this.plugin.saveSettings();
+        }));
+
+    // Show detected plugins
+    if (this.plugin.settings.pluginIntegration.detectInstalledPlugins) {
+      const pluginStatus = containerEl.createDiv('plugin-status');
+      pluginStatus.createEl('h4', { text: 'Detected Plugin Integrations' });
+      pluginStatus.createEl('p', { 
+        text: 'Triple-Crown will automatically detect and integrate with supported plugins like Dataview, Templater, Citations, and more.',
+        cls: 'setting-item-description' 
+      });
+      
+      // Add button to refresh plugin detection
+      new Setting(pluginStatus)
+        .setName('Refresh Plugin Detection')
+        .setDesc('Scan for newly installed plugins and update integrations')
+        .addButton(button => button
+          .setButtonText('Refresh')
+          .onClick(async () => {
+            // Trigger plugin detection refresh
+            if (this.plugin.pluginDetector) {
+              await this.plugin.pluginDetector.detectInstalledPlugins();
+            }
+            new Notice('Plugin integrations refreshed');
+          }));
+    }
 
     containerEl.createEl('h2', { text: 'Custom Actions' });
     

@@ -12,10 +12,18 @@
 
 import { CustomActionDefinition } from './actions/base-action';
 
+export type ClaudeConnectionMode = 'api' | 'cli' | 'hybrid';
+
 export interface TripleCrownSettings {
+  // Connection Configuration
+  connectionMode: ClaudeConnectionMode;
   apiKey: string;
   apiEndpoint: string;
   modelName: string;
+  cliPath: string;
+  fallbackToAPI: boolean;
+  
+  // Feature Settings
   autoSaveDuplicates: boolean;
   showInlineChanges: boolean;
   includeReasoning: boolean;
@@ -28,6 +36,7 @@ export interface TripleCrownSettings {
     therapistMode: boolean;
     codeReviewer: boolean;
     peerReviewer: boolean;
+    researchAssistant: boolean;
   };
   customActions: CustomActionDefinition[];
   privacySettings: {
@@ -40,13 +49,26 @@ export interface TripleCrownSettings {
     theme: 'dark' | 'light';
     showTimestamps: boolean;
     maxHistorySize: number;
+    enableGeneralTools: boolean;
+    allowSandboxedExecution: boolean;
+  };
+  pluginIntegration: {
+    detectInstalledPlugins: boolean;
+    enableCrossPluginFeatures: boolean;
+    supportedPlugins: string[];
   };
 }
 
 export const DEFAULT_SETTINGS: TripleCrownSettings = {
+  // Connection Configuration
+  connectionMode: 'api',
   apiKey: '',
   apiEndpoint: 'https://api.anthropic.com/v1/messages',
   modelName: 'claude-3-5-sonnet-20241022',
+  cliPath: 'claude-code',
+  fallbackToAPI: true,
+  
+  // Feature Settings
   autoSaveDuplicates: true,
   showInlineChanges: true,
   includeReasoning: true,
@@ -58,7 +80,8 @@ export const DEFAULT_SETTINGS: TripleCrownSettings = {
     connectionFinder: true,
     therapistMode: false,
     codeReviewer: true,
-    peerReviewer: true
+    peerReviewer: true,
+    researchAssistant: true
   },
   customActions: [],
   privacySettings: {
@@ -77,7 +100,21 @@ export const DEFAULT_SETTINGS: TripleCrownSettings = {
     fontSize: 14,
     theme: 'dark',
     showTimestamps: true,
-    maxHistorySize: 1000
+    maxHistorySize: 1000,
+    enableGeneralTools: false,
+    allowSandboxedExecution: false
+  },
+  pluginIntegration: {
+    detectInstalledPlugins: true,
+    enableCrossPluginFeatures: true,
+    supportedPlugins: [
+      'dataview',
+      'templater',
+      'kanban',
+      'calendar',
+      'graph-analysis',
+      'citation'
+    ]
   }
 };
 

@@ -1,15 +1,29 @@
 # Triple-Crown
 
-An Obsidian plugin that integrates Claude Code as an intelligent writing assistant, featuring duplicate & edit workflows and context-aware suggestions.
+> **"A hat to wear on the hat of Obsidian - a brain for your second brain"**
+
+Triple-Crown brings intelligent AI assistance to your knowledge management system. Just as a crown sits atop one's head, Triple-Crown sits atop Obsidian, enhancing your thinking with Claude's capabilities while respecting the sanctity of your personal knowledge vault.
+
+## Philosophy
+
+Obsidian is your second brain - a place where your thoughts, ideas, and knowledge interconnect and grow. Triple-Crown adds a layer of intelligence on top of this, providing:
+
+- **Contextual Understanding**: Claude understands your vault's structure and content
+- **Intelligent Assistance**: From writing improvement to research organization  
+- **Respectful Integration**: Your vault remains yours - we enhance, never replace
+- **Ecosystem Awareness**: Works with your existing plugins and workflows
+
+And we accidentally created something more - a general-purpose terminal interface that extends beyond just Claude, opening possibilities for development tools, research assistants, and sandboxed execution within your knowledge workspace.
 
 ## Features
 
 ### 🎯 Core Features
-- **Terminal Interface**: Pseudo-terminal at bottom of Obsidian for interactive Claude sessions
-- **Writing Assistant**: Improve, expand, simplify, and summarize text
-- **Duplicate & Edit**: Non-destructive editing with timestamped copies
-- **Context Awareness**: Automatic file context and .claude folder configuration
-- **Bidirectional Links**: Automatic linking between originals and edits
+- **Multi-Modal Connection**: API, Claude-Code CLI, or hybrid mode support
+- **Enhanced Terminal**: Interactive Claude sessions with development tools and sandboxed execution
+- **Plugin Ecosystem Integration**: Automatic detection and integration with Dataview, Templater, Citations, and more
+- **Research Assistant**: Advanced source aggregation, link trees, and research organization
+- **Writing Suite**: Comprehensive writing assistance with 7 specialized actions
+- **Context Awareness**: Intelligent file context and .claude folder configuration
 
 ### ✨ Signature Feature: Duplicate & Edit
 - Creates timestamped copies: `filename-claude-edit-YYYY-MM-DD.md`
@@ -22,10 +36,47 @@ An Obsidian plugin that integrates Claude Code as an intelligent writing assista
 - **writing-assistant**: Improve, expand, or simplify text ✅ *enabled by default*
 - **tag-builder**: Generate smart tags for content ✅ *enabled by default*
 - **connection-finder**: Discover note relationships ✅ *enabled by default*
+- **research-assistant**: Aggregate sources and create link trees ✅ *enabled by default*
+- **code-reviewer**: Technical code review with security focus ✅ *enabled by default*
+- **peer-reviewer**: Academic peer review for scholarly writing ✅ *enabled by default*
 - **therapist-mode**: Reflective journaling assistance ⚠️ *disabled by default for privacy*
-- **code-reviewer**: Review and improve code ✅ *enabled by default*
-- **peer-reviewer**: Academic peer review ✅ *enabled by default*
-- **custom-actions**: Create your own actions with custom prompts 🎯 *user-defined*
+- **custom-actions**: Create unlimited actions with custom prompts 🎯 *user-defined*
+
+### 🔌 Connection Modes
+- **API Mode**: Direct Anthropic API integration (requires API key)
+- **CLI Mode**: Claude-Code CLI for Pro/Max subscribers (no API key needed)
+- **Hybrid Mode**: CLI preferred with API fallback for maximum reliability
+
+### 🧩 Plugin Integrations (Claude Awareness)
+Triple-Crown makes Claude aware of your installed plugins, enabling enhanced assistance:
+- **Dataview**: Claude can generate complex queries and help analyze your vault data
+- **Templater**: Claude creates dynamic templates with proper Templater syntax
+- **Citations**: Claude formats academic citations and manages bibliographies
+- **Calendar**: Claude understands your temporal organization and daily notes
+- **Kanban**: Claude helps organize tasks and suggests workflow improvements
+- **Canvas**: Claude can suggest visual connections and mind map structures
+
+*Claude sees what plugins you have and adapts its responses accordingly!*
+
+### 🖥️ The Accidental Terminal
+What started as a simple Claude interface evolved into something more powerful:
+- **General Purpose Terminal**: Execute various commands beyond just Claude
+- **Development Tools**: Code analysis, formatting, and sandboxed execution
+- **Research Commands**: Advanced search, source management, and analysis
+- **Vault Analysis**: Understand your knowledge structure and patterns
+- **Extensible Architecture**: Add your own commands and tools
+
+This wasn't planned - it emerged naturally from the desire to make Triple-Crown a true enhancement layer for Obsidian.
+
+### 📝 Progressive Context (CLAUDE.md)
+Triple-Crown automatically maintains a `CLAUDE.md` file in your vault root that:
+- **Tracks your vault statistics** and recent activity
+- **Lists installed plugins** that Claude can leverage
+- **Understands your projects** and writing patterns
+- **Updates automatically** to keep Claude current with your work
+- **Respects privacy** while providing useful context
+
+This gives Claude immediate understanding of your vault structure and capabilities every session!
 
 ## Installation
 
@@ -36,11 +87,21 @@ An Obsidian plugin that integrates Claude Code as an intelligent writing assista
 
 ## Configuration
 
-### Global Settings
-- **API Key**: Your Anthropic API key (required)
+### Connection Settings
+- **Connection Mode**: Choose API, CLI, or Hybrid mode
+- **API Key**: Your Anthropic API key (required for API mode)
+- **CLI Path**: Path to claude-code executable (for CLI mode)
+- **Fallback Settings**: API fallback configuration for hybrid mode
+
+### Feature Settings
 - **Auto-save duplicates**: Automatically save duplicate & edit results
 - **Show inline changes**: Display strikethrough deletions and bold additions
 - **Include reasoning**: Add Claude's reasoning in blockquotes
+
+### Enhanced Terminal
+- **General Tools**: Enable development and analysis tools beyond Claude
+- **Sandboxed Execution**: Allow safe code execution with confirmation
+- **Plugin Integration**: Automatic detection of other Obsidian plugins
 
 ### Folder-Level Configuration
 Create `.claude/config.json` in any folder:

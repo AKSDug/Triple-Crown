@@ -12,11 +12,12 @@
 
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 import { ClaudeService } from './claude-service';
+import { EnhancedTerminalService } from './enhanced-terminal';
 
 export const TERMINAL_VIEW_TYPE = 'claude-terminal';
 
 export class TerminalView extends ItemView {
-  private claudeService: ClaudeService;
+  private terminalService: ClaudeService | EnhancedTerminalService;
   private terminal: HTMLElement;
   private input: HTMLInputElement;
   private output: HTMLElement;
@@ -24,9 +25,9 @@ export class TerminalView extends ItemView {
   private historyIndex = -1;
   private isProcessing = false;
 
-  constructor(leaf: WorkspaceLeaf, claudeService: ClaudeService) {
+  constructor(leaf: WorkspaceLeaf, terminalService: ClaudeService | EnhancedTerminalService) {
     super(leaf);
-    this.claudeService = claudeService;
+    this.terminalService = terminalService;
   }
 
   getViewType(): string {
@@ -43,7 +44,9 @@ export class TerminalView extends ItemView {
 
   async onOpen(): Promise<void> {
     this.createTerminalInterface();
-    await this.claudeService.initialize();
+    if ('initialize' in this.terminalService) {
+      await this.terminalService.initialize();
+    }
     this.addWelcomeMessage();
   }
 
@@ -99,8 +102,13 @@ export class TerminalView extends ItemView {
   }
 
   private addWelcomeMessage(): void {
-    this.addMessage('system', 'Claude Terminal initialized. Type your commands or questions below.');
-    this.addMessage('system', 'Available commands: help, clear, context, config');
+    if (this.terminalService instanceof EnhancedTerminalService) {
+      this.addMessage('system', 'Enhanced Terminal initialized. Type your commands or questions below.');
+      this.addMessage('system', 'Available commands: help, clear, context, config, analyze, format, search, research, run');
+    } else {
+      this.addMessage('system', 'Claude Terminal initialized. Type your commands or questions below.');
+      this.addMessage('system', 'Available commands: help, clear, context, config');
+    }
   }
 
   private async handleCommand(): Promise<void> {
@@ -139,69 +147,88 @@ export class TerminalView extends ItemView {
   }
 
   private async handleSystemCommand(command: string): Promise<void> {
-    const [cmd, ...args] = command.slice(1).split(' ');
+    if (this.terminalService instanceof EnhancedTerminalService) {
+      // Use enhanced terminal's command processing
+      const result = await this.terminalService.executeCommand(command);
+      this.addMessage('system', result);
+    } else {
+      // Fallback to basic Claude service commands
+      const [cmd, ...args] = command.slice(1).split(' ');
 
-    switch (cmd) {
-      case 'help':
-        this.addMessage('system', `Available commands:
+      switch (cmd) {
+        case 'help':
+          this.addMessage('system', `Available commands:
 /help - Show this help message
 /clear - Clear terminal output
 /context - Show current context information
 /config - Show configuration status
 /actions - List available actions
 /history - Show command history`);
-        break;
+          break;
 
-      case 'clear':
-        this.output.empty();
-        break;
+        case 'clear':
+          this.output.empty();
+          break;
 
-      case 'context':
-        const activeFile = this.app.workspace.getActiveFile();
-        if (activeFile) {
-          const context = await this.claudeService.getContextForFile(activeFile.path);
-          this.addMessage('system', `Current context:\n${context}`);
-        } else {
-          this.addMessage('system', 'No active file');
-        }
-        break;
+        case 'context':
+          const activeFile = this.app.workspace.getActiveFile();
+          if (activeFile && 'getContextForFile' in this.terminalService) {
+            const context = await this.terminalService.getContextForFile(activeFile.path);
+            this.addMessage('system', `Current context:\n${context}`);
+          } else {
+            this.addMessage('system', 'No active file');
+          }
+          break;
 
-      case 'config':
-        const configStatus = await this.getConfigStatus();
-        this.addMessage('system', configStatus);
-        break;
+        case 'config':
+          const configStatus = await this.getConfigStatus();
+          this.addMessage('system', configStatus);
+          break;
 
-      case 'actions':
-        this.addMessage('system', `Available actions:
+        case 'actions':
+          this.addMessage('system', `Available actions:
 - writing-assistant: Improve, expand, or simplify text
 - tag-builder: Generate smart tags for content
 - connection-finder: Discover note relationships
 - therapist-mode: Reflective journaling assistance
 - code-reviewer: Review and improve code
-- peer-reviewer: Academic peer review`);
-        break;
+- peer-reviewer: Academic peer review
+- research-assistant: Aggregate sources and create link trees`);
+          break;
 
-      case 'history':
-        const historyText = this.history.map((cmd, i) => `${i + 1}. ${cmd}`).join('\n');
-        this.addMessage('system', `Command history:\n${historyText}`);
-        break;
+        case 'history':
+          const historyText = this.history.map((cmd, i) => `${i + 1}. ${cmd}`).join('\n');
+          this.addMessage('system', `Command history:\n${historyText}`);
+          break;
 
-      default:
-        this.addMessage('system', `Unknown command: ${cmd}. Type /help for available commands.`);
+        default:
+          this.addMessage('system', `Unknown command: ${cmd}. Type /help for available commands.`);
+      }
     }
   }
 
   private async handleClaudeQuery(query: string): Promise<void> {
     const activeFile = this.app.workspace.getActiveFile();
-    const context = activeFile ? await this.claudeService.getContextForFile(activeFile.path) : '';
+    let context = '';
+    
+    if (activeFile && 'getContextForFile' in this.terminalService) {
+      context = await this.terminalService.getContextForFile(activeFile.path);
+    }
 
     try {
-      const response = await this.claudeService.sendRequest({
-        prompt: query,
-        context: context,
-        action: 'terminal',
-        file: activeFile?.path
-      });
+      let response;
+      if ('sendRequest' in this.terminalService) {
+        response = await this.terminalService.sendRequest({
+          prompt: query,
+          context: context,
+          action: 'terminal',
+          file: activeFile?.path
+        });
+      } else {
+        // Enhanced terminal service might handle queries differently
+        const result = await this.terminalService.executeCommand(query);
+        response = { content: result };
+      }
 
       this.addMessage('claude', response.content);
 
@@ -209,7 +236,7 @@ export class TerminalView extends ItemView {
         this.addMessage('claude', `Reasoning: ${response.reasoning}`);
       }
     } catch (error) {
-      this.addMessage('system', `Claude service error: ${error.message}`);
+      this.addMessage('system', `Service error: ${error.message}`);
     }
   }
 
@@ -217,8 +244,8 @@ export class TerminalView extends ItemView {
     const activeFile = this.app.workspace.getActiveFile();
     const configPath = activeFile ? activeFile.parent?.path : '';
     
-    if (configPath) {
-      const config = await this.claudeService.findClaudeConfig(configPath);
+    if (configPath && 'findClaudeConfig' in this.terminalService) {
+      const config = await this.terminalService.findClaudeConfig(configPath);
       if (config) {
         return `Claude configuration found:\n${JSON.stringify(config, null, 2)}`;
       }
@@ -265,6 +292,8 @@ export class TerminalView extends ItemView {
 
   async onClose(): Promise<void> {
     // Cleanup terminal session
-    await this.claudeService.cleanup();
+    if ('cleanup' in this.terminalService) {
+      await this.terminalService.cleanup();
+    }
   }
 }

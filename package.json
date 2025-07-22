@@ -1,6 +1,6 @@
 {
   "name": "triple-crown",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "description": "An Obsidian plugin that integrates Claude Code as an intelligent writing assistant",
   "main": "main.js",
   "scripts": {
