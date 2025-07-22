@@ -49,3 +49,6 @@ main.js
 
 # Package lock files (optional - include if you want reproducible builds)
 package-lock.json
+
+# Wiki content (uploaded manually to GitHub wiki)
+wiki-content/
